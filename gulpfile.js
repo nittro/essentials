@@ -1,4 +1,4 @@
-var gulp = require('gulp'),
+const gulp = require('gulp'),
     nittro = require('gulp-nittro'),
     sourcemaps = require('gulp-sourcemaps'),
     uglify = require('gulp-uglify'),
@@ -6,9 +6,10 @@ var gulp = require('gulp'),
     postcss = require('gulp-postcss'),
     autoprefixer = require('autoprefixer'),
     concat = require('gulp-concat'),
-    zip = require('gulp-zip');
+    zip = require('gulp-zip'),
+    pump = require('pump');
 
-var builder = new nittro.Builder({
+const builder = new nittro.Builder({
     base: {
         core: true,
         datetime: true,
@@ -23,32 +24,38 @@ var builder = new nittro.Builder({
     stack: true
 });
 
-var info = require('./package.json');
+const info = require('./package.json');
 
-gulp.task('js', function () {
-    return nittro('js', builder)
-        .pipe(sourcemaps.init())
-        .pipe(concat('nittro.min.js'))
-        .pipe(uglify({compress: true, mangle: false}))
-        .pipe(sourcemaps.write('.'))
-        .pipe(gulp.dest('dist/'));
+gulp.task('js', function (cb) {
+    pump([
+        nittro('js', builder),
+        sourcemaps.init(),
+        concat('nittro.min.js'),
+        uglify({compress: true, mangle: false}),
+        sourcemaps.write('.'),
+        gulp.dest('dist/')
+    ], cb);
 });
 
-gulp.task('css', function () {
-    return nittro('css', builder)
-        .pipe(sourcemaps.init())
-        .pipe(less({compress: true}))
-        .pipe(postcss([ autoprefixer() ]))
-        .pipe(concat('nittro.min.css'))
-        .pipe(sourcemaps.write('.'))
-        .pipe(gulp.dest('dist/'));
+gulp.task('css', function (cb) {
+    pump([
+        nittro('css', builder),
+        sourcemaps.init(),
+        less({compress: true}),
+        postcss([ autoprefixer() ]),
+        concat('nittro.min.css'),
+        sourcemaps.write('.'),
+        gulp.dest('dist/')
+    ], cb);
 });
 
-gulp.task('zip', function () {
-    return gulp.src(['dist/nittro.min.*', 'Readme.md'])
-        .pipe(zip(info.name + '-' + info.version + '.zip'))
-        .pipe(gulp.dest('dist/'));
+gulp.task('zip', function (cb) {
+    pump([
+        gulp.src(['dist/nittro.min.*', 'Readme.md']),
+        zip(info.name + '-' + info.version + '.zip'),
+        gulp.dest('dist/')
+    ], cb);
 });
 
-gulp.task('build', ['js', 'css']);
-gulp.task('release', ['zip']);
+gulp.task('build', gulp.parallel('js', 'css'));
+gulp.task('release', gulp.series('zip'));
